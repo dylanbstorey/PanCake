@@ -60,16 +60,15 @@ my $chunk_counter = 1;
 print STDOUT "STARTING TO PRINT MANIFESTS\n";
 
 map{
-	open (OUT , '>' , "$chunk_counter.manifest") || die $!;
+#	open (OUT , '>' , "$chunk_counter.manifest") || die $!;
 	mkdir("Chunk\_$chunk_counter");
-
 	map{
 		my $filename = fileparse($_);
 		$filename = "Chunk\_$chunk_counter/$filename";
-		print OUT "$filename" . "\n";
+#		print OUT "$filename" . "\n";
 		copy($_ , $filename) || die "Copy of $_ to $filename failed!";
 		}@{$_};	
-	close OUT;
+#	close OUT;
 
 	$chunk_counter++;
 	}@file_lists;

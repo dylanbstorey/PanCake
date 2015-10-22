@@ -10,5 +10,5 @@ module load mummer
 
 cd Chunk_${SLURM_ARRAY_TASK_ID}
 touch ${SLURM_ARRAY_TASK_ID}.out
-/home/dstorey/bin/Genome2GenomeDistance/G2GCalc --manifest *.fa* --threads 4  --out ${SLURM_ARRAY_TASK_ID}.out
+/home/dstorey/bin/Genome2GenomeDistance/G2GCalc --files *.fa* --threads 4  --out ${SLURM_ARRAY_TASK_ID}.out
 cd ..
