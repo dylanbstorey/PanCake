@@ -10,4 +10,4 @@ module load mummer
 
 touch ${SLURM_ARRAY_TASK_ID}.out
 
-/home/dstorey/bin/Genome2GenomeDistance/G2GCalc --manifest ${SLURM_ARRAY_TASK_ID}.manifest --threads  --out ${SLURM_ARRAY_TASK_ID}.out
+/home/dstorey/bin/Genome2GenomeDistance/G2GCalc --manifest ${SLURM_ARRAY_TASK_ID}.manifest --threads 4  --out ${SLURM_ARRAY_TASK_ID}.out
