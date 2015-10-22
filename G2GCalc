@@ -11,13 +11,13 @@ my @files;
 my $threads = 1;
 my $manifest = '';
 my $output = {};
-my $out = '/dev/stdout';
+my $out ;
 
 GetOptions(
 	'manifest:s' => \$manifest,
 	'threads:i' => \$threads,
 	'files=s@{,}' => \@files,
-	'outfile:s' => \$out
+	'out:s' => \$out
 	) || die $!;
 
 
@@ -28,6 +28,7 @@ if ($manifest){
 	open (IN , '<' , $manifest) || die $!;
 	push @files , <IN>;
 	chomp @files;
+	close IN;
 	}
 
 
@@ -83,16 +84,22 @@ else{
 
 	}
 
+
+$out //= '\/dev\/stdout';
 open (OUT , '>' , $out) || die $!;
-select OUT;
-print join("\t",(scalar keys %{$output}) , sort keys %{$output}) . "\n";	
+print OUT join("\t",(scalar keys %{$output}) , sort keys %{$output}) . "\n";	
 map {
 	my $row = $_;
-	print $row . "\t";
+	print OUT $row . "\t";
 	map {
-		print $output->{$row}->{$_} . "\t";
+		if (defined $output->{$row}->{$_}){
+			printf OUT "%.5f \t" ,$output->{$row}->{$_} ;
+			}
+		else{
+			print OUT "X\t";
+			}
 		} sort keys %{$output->{$row}};
-	print "\n";
+	print OUT "\n";
 	} sort keys %{$output};
 close OUT;
 exit;
@@ -101,16 +108,16 @@ exit;
 sub run_mummer{
 	my $ref = shift;
 	my $query = shift;
-	my $mummer = "nucmer -mum -l 44 $ref $query -p $ref\_$query 2>/dev/null";
+	my $mummer = "nucmer -mum -l 44 $ref $query -p $ref\_$query 2> /dev/null";
 	unless (system($mummer) == 0){
 		unlink("$ref\_$query.delta");
-		print STDERR "$ref vs $query mummer search failed $?\n";
+		print STDERR "$ref vs $query mummer search failed \n";
 		return;
 		}
-	my $show_coords = "show-coords -dTlorH $ref\_$query.delta >$ref\_$query.coords   2>/dev/null";
+	my $show_coords = "show-coords -dTlorH $ref\_$query.delta >$ref\_$query.coords 2> /dev/null";
 	unless(system($show_coords)== 0){
 		unlink("$ref\_$query.coords");
-		print STDERR "$ref\_$query show-coords failed $?";
+		print STDERR "$ref\_$query show-coords failed";
 		return;
 		}
 
@@ -151,7 +158,6 @@ sub calc_distance{
 			}
 		}@lines;
 
-	untie @lines;
 	return 1-($numerator/$length);
 }
 
@@ -160,9 +166,11 @@ sub greedy_overlap{
 	my ($line1 , $line2 ,$index1,$index2 ) = @_;
 
 	
+	#split to array refs
 	$line1 = [split(/\s+/ , $line1)];
 	$line2 = [split(/\s+/ , $line2)];
 
+	#swap in place for well formed ranges. (Not sure this is strictly needed but better safe than sorry)
 	($line1->[1] , $line1->[0] ) = ( $line1->[0] , $line1->[1] )if ($line1->[0] > $line1->[1]);
 	($line2->[1] , $line2->[0] ) = ( $line2->[0] , $line2->[1] )if ($line2->[0] > $line2->[1]);
 
@@ -171,9 +179,12 @@ sub greedy_overlap{
 
 	my $overlap = 0;
 
+	#alignment on same ref , Check for overlap
 	if ($line1->[11] eq $line2->[11]){
 		$overlap = 1 if ($line1->[0] <= $line2->[1] && $line2->[0] <= $line1->[1]);
 		}
+
+	#alignment on same query , check for overlap
 	if ($line1->[12] eq $line2->[12]){
 		$overlap = 1 if ($line1->[2] <= $line2->[3] && $line2->[2] <= $line1->[3]);
 		}
