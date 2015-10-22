@@ -57,8 +57,9 @@ my $chunk_counter = 1;
 
 
 
-print STDOUT "STARTING TO PRINT MANIFESTS\n";
 
+print STDOUT "STARTING TO PRINT MANIFESTS\n";
+print STDOUT "HAVE TO MAKE ". scalar(@file_lists)." CHUNKS. \nGo get some coffee!\n";
 map{
 #	open (OUT , '>' , "$chunk_counter.manifest") || die $!;
 	mkdir("Chunk\_$chunk_counter");
