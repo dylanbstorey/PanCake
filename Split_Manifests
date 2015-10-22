@@ -1,0 +1,47 @@
+#!/usr/bin/perl
+use warnings;
+use strict;
+use Getopt::Long;
+use POSIX qw/ceil/;
+
+my @files;
+my $chunk_size = 90000;
+my $slice_size = ceil($chunk_size ** 0.5)/2;
+
+my @sublists = ();
+
+while (@files){
+	push @sublists , [splice(@files,0,$slice_size)];
+	}
+
+my $sublist_count = scalar @sublists;
+
+my @file_lists = ();
+
+for (my $i = 0 ; $i < $sublist_count ; $i++){
+        for (my $j = $i ; $j < $sublist_count ; $j++){
+                push @file_lists ,[@{$sublists[$i]} , @{$sublists[$j]}];
+                }
+        }
+
+map {
+        @{$_}= keys { map { $_ => 1 } @{$_} };
+        } @file_lists;
+
+my $chunk_counter = 1;
+
+map{
+	open (OUT , '>' , "$chunk_counter.manifest") || die $!;
+	map{
+		print OUT $_ . "\n";
+		}@{$_};	
+	close OUT;
+	$chunk_counter++;
+	}@file_lists;
+
+
+
+
+
+
+exit;

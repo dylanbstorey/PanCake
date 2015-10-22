@@ -1,0 +1,198 @@
+#!/usr/bin/perl
+use warnings;
+use strict;
+use threads;
+use Thread::Queue;
+use Thread::Semaphore;
+use Getopt::Long;
+use Data::Dumper;
+
+my @files;
+my $threads = 1;
+my $manifest = '';
+my $output = {};
+my $out = '/dev/stdout';
+
+GetOptions(
+	'manifest:s' => \$manifest,
+	'threads:i' => \$threads,
+	'files=s@{,}' => \@files,
+	'outfile:s' => \$out
+	) || die $!;
+
+
+
+if ($manifest){
+#If there is a manifest file , open it push it to files and remove new lines
+	die "$manifest doesn't exist\n" unless -e $manifest;
+	open (IN , '<' , $manifest) || die $!;
+	push @files , <IN>;
+	chomp @files;
+	}
+
+
+
+
+
+
+
+
+if ($threads ==1 ){
+	for my $i (@files){
+		for my $j (@files){
+			$output->{$i}->{$j} = run_mummer($i,$j);
+			}
+		}
+
+	}
+else{
+
+
+	my $queue = Thread::Queue->new();
+	my @threads = ();
+
+	for my $i (@files){
+		for my $j (@files){
+			$queue->enqueue([$i,$j]);
+			}
+		}
+
+	$queue->end();
+
+	map{	
+		push @threads , threads->create(
+			sub {
+				my $little = { };
+				while(my $pair = $queue->dequeue()){
+					$little->{$pair->[0]}->{$pair->[1]} = run_mummer($pair->[0] , $pair->[1]);
+					}
+				return $little;
+				}
+			);
+		}(1..$threads);
+
+	map {
+		my $return = $_->join();
+		map {
+			my $row = $_;
+			map{
+				$output->{$row}->{$_} = $return->{$row}->{$_};
+				} keys %{$return->{$row}};
+			} keys %{$return};
+		}@threads;
+
+	}
+
+open (OUT , '>' , $out) || die $!;
+select OUT;
+print join("\t",(scalar keys %{$output}) , sort keys %{$output}) . "\n";	
+map {
+	my $row = $_;
+	print $row . "\t";
+	map {
+		print $output->{$row}->{$_} . "\t";
+		} sort keys %{$output->{$row}};
+	print "\n";
+	} sort keys %{$output};
+close OUT;
+exit;
+
+
+sub run_mummer{
+	my $ref = shift;
+	my $query = shift;
+	my $mummer = "nucmer -mum -l 44 $ref $query -p $ref\_$query 2>/dev/null";
+	unless (system($mummer) == 0){
+		unlink("$ref\_$query.delta");
+		print STDERR "$ref vs $query mummer search failed $?\n";
+		return;
+		}
+	my $show_coords = "show-coords -dTlorH $ref\_$query.delta >$ref\_$query.coords   2>/dev/null";
+	unless(system($show_coords)== 0){
+		unlink("$ref\_$query.coords");
+		print STDERR "$ref\_$query show-coords failed $?";
+		return;
+		}
+
+	return calc_distance("$ref\_$query.coords");
+	}
+
+
+sub calc_distance{
+	open (IN , '<' , $_[0]) || die $! if (-e $_[0]);
+	my @lines =<IN>; chomp @lines; close IN;
+	my %alignments;
+
+	my $n_records = @lines;
+	my @marked_for_deletion;
+
+	for my $i (0..$n_records-1){
+		for my $j ($i+1..$n_records-1){
+			my $to_delete = greedy_overlap($lines[$i] , $lines[$j] , $i , $j);
+			push @marked_for_deletion , $to_delete if $to_delete;
+			}
+		}
+
+	
+
+	@marked_for_deletion = do {my %seen ; grep {!$seen{$_}++} @marked_for_deletion};
+	map{$lines[$_] = '' if defined ($_)}@marked_for_deletion;
+
+	my $numerator = 0;
+	my $length = 0;
+
+
+	map {
+		if ($_){
+			my @line = split(/\s/,$_);
+			$numerator+=($line[4]*($line[6]/100));
+			$numerator+=($line[5]*($line[6]/100));
+			$length+=($line[4]+$line[5]);
+			}
+		}@lines;
+
+	untie @lines;
+	return 1-($numerator/$length);
+}
+
+
+sub greedy_overlap{
+	my ($line1 , $line2 ,$index1,$index2 ) = @_;
+
+	
+	$line1 = [split(/\s+/ , $line1)];
+	$line2 = [split(/\s+/ , $line2)];
+
+	($line1->[1] , $line1->[0] ) = ( $line1->[0] , $line1->[1] )if ($line1->[0] > $line1->[1]);
+	($line2->[1] , $line2->[0] ) = ( $line2->[0] , $line2->[1] )if ($line2->[0] > $line2->[1]);
+
+	($line1->[3] , $line1->[2] ) = ( $line1->[2] , $line1->[3] )if ($line1->[2] > $line1->[3]);
+	($line2->[3] , $line2->[2] ) = ( $line2->[2] , $line2->[3] )if ($line2->[2] > $line2->[3]);
+
+	my $overlap = 0;
+
+	if ($line1->[11] eq $line2->[11]){
+		$overlap = 1 if ($line1->[0] <= $line2->[1] && $line2->[0] <= $line1->[1]);
+		}
+	if ($line1->[12] eq $line2->[12]){
+		$overlap = 1 if ($line1->[2] <= $line2->[3] && $line2->[2] <= $line1->[3]);
+		}
+
+
+	if ($overlap){
+	
+			my @pairs = (
+				[$line1->[4] , $index2],
+				[$line2->[4] , $index1],
+				[$line1->[5] , $index2],
+				[$line2->[5] , $index1]
+				);
+			@pairs = sort{ $b->[0] <=> $a->[0]} @pairs;
+
+			return $pairs[0]->[1];
+		}
+
+	return undef;
+	}
+
+

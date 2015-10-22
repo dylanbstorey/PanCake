@@ -1,0 +1,10 @@
+#!/bin/bash -l
+#SBATCH -N 1
+#SBATCH -n 8
+#SBATCH -o FAssAnn_%A_%a.out
+#SBATCH -e FAssAnn_%A_%a.err
+#SBATCH -p med
+
+module load mummer
+
+/home/dstorey/bin/G2GDistanceCalculator/G2GCalc --manifest ${SLURM_ARRAY_TASK_ID}.manifest --threads 8 --outfile ${SLURM_ARRAY_TASK_ID}.out
