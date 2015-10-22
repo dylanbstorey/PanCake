@@ -108,20 +108,30 @@ exit;
 sub run_mummer{
 	my $ref = shift;
 	my $query = shift;
-	my $mummer = "nucmer -mum -l 44 $ref $query -p $ref\_$query 2> /dev/null";
-	unless (system($mummer) == 0){
-		unlink("$ref\_$query.delta");
-		print STDERR "$ref vs $query mummer search failed \n";
-		return;
-		}
-	my $show_coords = "show-coords -dTlorH $ref\_$query.delta >$ref\_$query.coords 2> /dev/null";
-	unless(system($show_coords)== 0){
-		unlink("$ref\_$query.coords");
-		print STDERR "$ref\_$query show-coords failed";
-		return;
+	my $out = $ref .'_'. $query; $out =~ s/\//_/g;
+	my $mummer = "nucmer -mum -l 44 $ref $query -p $out  2> /dev/null";
+
+	unless (-e "$out.delta"){
+		unless (system($mummer) == 0){
+			unlink("$out.delta");
+			unlink("$out.ntref");
+			unlink("$out.mgaps");
+			print STDERR "$ref vs $query mummer search failed \n";
+			return undef;
+			}
 		}
 
-	return calc_distance("$ref\_$query.coords");
+	my $show_coords = "show-coords -dTlorH $out.delta >$out.coords 2> /dev/null";
+	
+	unless (-e "$out.coords" ){
+		unless(system($show_coords)== 0){
+			unlink("$out.coords");
+			print STDERR "$ref\_$query show-coords failed";
+			return undef;
+			}
+		}
+
+	return calc_distance("$out.coords");
 	}
 
 
@@ -204,6 +214,6 @@ sub greedy_overlap{
 		}
 
 	return undef;
-	}
+}
 
 
