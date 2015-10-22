@@ -97,8 +97,6 @@ else{
 
 	}
 
-
-$out //= '\/dev\/stdout';
 open (OUT , '>' , $out) || die $!;
 print OUT join("\t",(scalar keys %{$output}) , sort keys %{$output}) . "\n";	
 map {

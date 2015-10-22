@@ -22,6 +22,8 @@ use warnings;
 use strict;
 use Getopt::Long;
 use POSIX qw/ceil/;
+use File::Basename;
+use File::Copy;
 
 my @files;
 my $chunk_size = 90000;
@@ -53,14 +55,22 @@ map {
 
 my $chunk_counter = 1;
 
+
+
 print STDOUT "STARTING TO PRINT MANIFESTS\n";
 
 map{
 	open (OUT , '>' , "$chunk_counter.manifest") || die $!;
+	mkdir("Chunk\_$chunk_counter");
+
 	map{
-		print OUT $_ . "\n";
+		my $filename = fileparse($_);
+		$filename = "Chunk\_$chunk_counter/$filename";
+		print OUT "$filename" . "\n";
+		copy($_ , $filename) || die "Copy of $_ to $filename failed!";
 		}@{$_};	
 	close OUT;
+
 	$chunk_counter++;
 	}@file_lists;
 
