@@ -28,12 +28,6 @@ __Options__:
 
 --threads : multi threading is supported. 
 
---files : files you wish to analyze. Supports wild-cards. (i.e. *.fa)
-
---out : file to print resulting distance matrix to. Defaults to /dev/stdout
-
-You can mix and match files + --manifest. 
-
   
 ## Split_Manifests
 

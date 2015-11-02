@@ -26,123 +26,137 @@ use Thread::Queue;
 use Thread::Semaphore;
 use Getopt::Long;
 use Data::Dumper;
+use File::Basename;
+use Tie::File;
+
 
 my @files;
 my $threads = 1;
 my $manifest = '';
 my $output = {};
-my $out ;
+
 
 GetOptions(
 	'manifest:s' => \$manifest,
 	'threads:i' => \$threads,
-	'files=s@{,}' => \@files,
-	'out:s' => \$out
+	
 	) || die $!;
 
+my $out = fileparse($manifest, qr/\.[^.]*/);
+$out.=".mtx";
 
 
-if ($manifest){
-#If there is a manifest file , open it push it to files and remove new lines
-	die "$manifest doesn't exist\n" unless -e $manifest;
-	open (IN , '<' , $manifest) || die $!;
-	push @files , <IN>;
-	chomp @files;
-	close IN;
-	}
+die usage() unless ($manifest && $threads);
 
 
 
-if ($threads ==1 ){
-	for my $i (@files){
-		for my $j (@files){
-			$output->{$i}->{$j} = run_mummer($i,$j);
-			}
+
+
+open(OUT,'>',$out) || die $!;
+open (MANIFEST, '<' , $manifest) || die $!;
+
+
+if ($threads == 1){
+	while (my $line = <MANIFEST>){
+		my ($ref , $query) = split (/\s/,$line);
+		print OUT join ("\t" , ($ref ,$query ,G2G($ref , $query))) . "\n";
 		}
-
 	}
 else{
-	my $queue = Thread::Queue->new();
-	my @threads = ();
 
-	for my $i (@files){
-		for my $j (@files){
-			$queue->enqueue([$i,$j]);
-			}
-		}
-
-	$queue->end();
-
-	map{	
-		push @threads , threads->create(
+	my @threads;
+	my @LINES = <MANIFEST>;
+	my $queue = Thread::Queue->new(); $queue->enqueue(@LINES); $queue->end();
+	
+	map{
+		push @threads, threads->create(
 			sub {
-				my $little = { };
-				while(my $pair = $queue->dequeue()){
-					$little->{$pair->[0]}->{$pair->[1]} = run_mummer($pair->[0] , $pair->[1]);
+				my @sub_lines;
+				while(my $line = $queue->dequeue()){
+					my ($ref , $query) = split (/\s/,$line);
+					push @sub_lines , join ("\t" , ($ref ,$query ,G2G($ref , $query)));
 					}
-				return $little;
+				return \@sub_lines;
 				}
-			);
-		}(1..$threads);
+			)
+		}(1..$threads);	
 
-	map {
-		my $return = $_->join();
-		map {
-			my $row = $_;
-			map{
-				$output->{$row}->{$_} = $return->{$row}->{$_};
-				} keys %{$return->{$row}};
-			} keys %{$return};
+	map{
+		map{
+			print OUT $_ ."\n";
+			}@{$_->join()};
+
 		}@threads;
-
 	}
 
-open (OUT , '>' , $out) || die $!;
-print OUT join("\t",(scalar keys %{$output}) , sort keys %{$output}) . "\n";	
-map {
-	my $row = $_;
-	print OUT $row . "\t";
-	map {
-		if (defined $output->{$row}->{$_}){
-			printf OUT "%.5f \t" ,$output->{$row}->{$_} ;
-			}
-		else{
-			print OUT "X\t";
-			}
-		} sort keys %{$output->{$row}};
-	print OUT "\n";
-	} sort keys %{$output};
+
+close MANIFEST;
 close OUT;
 exit;
 
 
-sub run_mummer{
+
+
+sub G2G{
 	my $ref = shift;
 	my $query = shift;
-	my $out = $ref .'_'. $query; $out =~ s/\//_/g;
-	my $mummer = "nucmer -mum -l 44 $ref $query -p $out  2> /dev/null";
+	my $r_base = fileparse($ref, qr/\.[^.]*/);
+	my $q_base = fileparse($query, qr/\.[^.]*/);
 
-	unless (-e "$out.delta"){
-		unless (system($mummer) == 0){
-			unlink("$out.delta");
-			unlink("$out.ntref");
-			unlink("$out.mgaps");
+	#set search direction 1
+	my $out1 = $r_base .'_'. $q_base; $out =~ s/\//_/g;
+	my $mummer1 = "nucmer -mum -l 44 $ref $query -p $out1  2> /dev/null";
+
+
+	#set search direction 2
+	my $out2 = $q_base .'_'. $r_base; $out =~ s/\//_/g;
+	my $mummer2 = "nucmer -mum -l 44 $query $ref -p $out2  2> /dev/null";
+
+
+
+	unless (-e "$out1.delta"){
+		unless (system($mummer1) == 0){
+			unlink("$out1.delta");
+			unlink("$out1.ntref");
+			unlink("$out1.mgaps");
 			print STDERR "$ref vs $query mummer search failed \n";
 			return undef;
 			}
 		}
 
-	my $show_coords = "show-coords -dTlorH $out.delta >$out.coords 2> /dev/null";
-	
-	unless (-e "$out.coords" ){
-		unless(system($show_coords)== 0){
-			unlink("$out.coords");
-			print STDERR "$ref\_$query show-coords failed";
+	unless (-e "$out2.delta"){
+		unless (system($mummer2) == 0){
+			unlink("$out2.delta");
+			unlink("$out2.ntref");
+			unlink("$out2.mgaps");
+			print STDERR "$query vs $ref mummer search failed \n";
 			return undef;
 			}
 		}
 
-	return calc_distance("$out.coords");
+	my $show_coords1 = "show-coords -dTlorH $out1.delta >$out1.coords 2> /dev/null";
+	my $show_coords2 = "show-coords -dTlorH $out2.delta >$out2.coords 2> /dev/null";
+
+
+	
+	unless (-e "$out1.coords" ){
+		unless(system($show_coords1)== 0){
+			unlink("$out1.coords");
+			print STDERR "$out1 show-coords failed";
+			return undef;
+			}
+		}
+
+	unless (-e "$out2.coords" ){
+		unless(system($show_coords2)== 0){
+			unlink("$out2.coords");
+			print STDERR "$out2 show-coords failed";
+			return undef;
+			}
+		}
+
+
+	return (calc_distance("$out1.coords") + calc_distance("$out2.coords")) / 2;
 	}
 
 

@@ -26,54 +26,31 @@ use File::Basename;
 use File::Copy;
 
 my @files;
-my $chunk_size = 90000;
+my $chunk_size;
 
 GetOptions(
 	'files=s@{,}' => \@files,
-	'chunk=i' => \$chunk_size) || die $!;
+	'chunk_size=i' => \$chunk_size
+	) || die $!;
 
-my $slice_size = ceil($chunk_size ** 0.5)/2;
-my @sublists = ();
+$chunk_size //= 10,000;
 
-while (@files){
-	push @sublists , [splice(@files,0,$slice_size)];
+my $chunk_number = 0;
+my $current_chunk_size=0;
+open (OUT , '>' , "$chunk_number.man") || die $!;
+
+for ( my $i = 0 ; $i < @files ; $i++){
+	for (my $j=$i; $j < @files; $j++){
+		print OUT join("\t", ($files[$i] , $files[$j])) . "\n";
+		$current_chunk_size++;
+		if ($current_chunk_size == $chunk_size){
+			close OUT;
+			$chunk_number++;
+			$current_chunk_size = 0;
+			open (OUT , '>' , "$chunk_number.man") || die $!;			
+			}
+		}
 	}
-
-my $sublist_count = scalar @sublists;
-
-my @file_lists = ();
-
-for (my $i = 0 ; $i < $sublist_count ; $i++){
-        for (my $j = $i ; $j < $sublist_count ; $j++){
-                push @file_lists ,[@{$sublists[$i]} , @{$sublists[$j]}];
-                }
-        }
-
-map {
-        @{$_}= keys { map { $_ => 1 } @{$_} };
-        } @file_lists;
-
-my $chunk_counter = 1;
-
-
-
-
-print STDOUT "STARTING TO PRINT MANIFESTS\n";
-print STDOUT "HAVE TO MAKE ". scalar(@file_lists)." CHUNKS. \nGo get some coffee!\n";
-map{
-#	open (OUT , '>' , "$chunk_counter.manifest") || die $!;
-	mkdir("Chunk\_$chunk_counter");
-	map{
-		my $filename = fileparse($_);
-		$filename = "Chunk\_$chunk_counter/$filename";
-#		print OUT "$filename" . "\n";
-		copy($_ , $filename) || die "Copy of $_ to $filename failed!";
-		}@{$_};	
-#	close OUT;
-
-	$chunk_counter++;
-	}@file_lists;
-
 
 
 
