@@ -44,11 +44,11 @@ The png is the actual graphic.
 
 A big run will look a little something like this:
 
-[Big Heatmap](Extras/heatmap.png)
+![Big Heatmap](Extras/heatmap.png)
 
 For reference we compared our method against the G2GDC web server and while we're not getting the exact same number we're close enough that I'm comfortable saying we're right.
 
-[Comparison to G2GDC Web Server](/home/dstorey/Desktop/Genome2GenomeDistance/Extras/MethodsComparisons/G2GDC_Webserver/UsVsServer.jpg)
+![Comparison to G2GDC Web Server](/home/dstorey/Desktop/Genome2GenomeDistance/Extras/MethodsComparisons/G2GDC_Webserver/UsVsServer.jpg)
 
 
 
