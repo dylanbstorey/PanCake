@@ -42,6 +42,16 @@ Alot of files. All of the coord and delta files are saved for now. After running
 The main files of ineterest for most people will be the test_join.mtx file and the test_join.mtx.png. The test_join.mtx file is the symmetric distance matrix ordered by hc clustering.
 The png is the actual graphic. 
 
+A big run will look a little something like this:
+
+[Big Heatmap](Extras/heatmap.png)
+
+For reference we compared our method against the G2GDC web server and while we're not getting the exact same number we're close enough that I'm comfortable saying we're right.
+
+[Comparison to G2GDC Web Server](/home/dstorey/Desktop/Genome2GenomeDistance/Extras/MethodsComparisons/G2GDC_Webserver/UsVsServer.jpg)
+
+
+
 
 
 
