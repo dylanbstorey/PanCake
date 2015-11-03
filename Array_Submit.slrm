@@ -8,5 +8,5 @@
 module load mummer
 
 touch ${SLURM_ARRAY_TASK_ID}.mtx
-/home/dstorey/bin/Genome2GenomeDistance/G2GCalc --files *.fa* --threads 4
+/home/dstorey/bin/Genome2GenomeDistance/G2GCalc --files ${SLURM_ARRAY_TASK_ID}.man --threads 4
 

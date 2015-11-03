@@ -44,8 +44,6 @@ GetOptions(
 
 my $out = fileparse($manifest, qr/\.[^.]*/);
 $out.=".mtx";
-
-
 die usage() unless ($manifest && $threads);
 
 

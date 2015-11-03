@@ -6,14 +6,51 @@ While the authors of that publication rightly believe that the BLAST algorithm g
 
 These programs provide a minimal implementation of their described methods so that the nucmer program could instead be employed using greedy trimming along with the equation __d<sub>4</sub>__ to calculate a distance between two genome assemblies.
 
-This repo contains a few scripts for executing this program as a standalone or in parallel computing enviroments. 
+##Synopsis of usage
+
+```bash
+cd test/
+
+Create our manifests
+../Split_Manifests --files Genomes/*.fa --chunk_size 200
+
+#Run them from a single node 
+for i in *.man; do ../G2GCalc --threads 32 --manifest $i ; done 
+
+
+#If were on a cluster with SBATCH 
+cp ../Array_Submit.slrm . 
+sbatch --array=0-2 Array_Submit.slrm
+
+
+#We should clean up a little once were done running
+mkdir co-ords
+mv *coords co-ords/
+mkdir deltas
+mv *delta deltas/
+
+#Combine and plot 
+#Get max elements 
+ls Genomes/*.fa | wc -l 
+#28
+../CombineMatrices --max_elements 28 --files *.mtx --out test_join.mtx
+```
+
+##Outputs of the run
+Alot of files. All of the coord and delta files are saved for now. After running the above sample they'll be in the co-ords and deltas folders respectively.
+
+The main files of ineterest for most people will be the test_join.mtx file and the test_join.mtx.png. The test_join.mtx file is the symmetric distance matrix ordered by hc clustering.
+The png is the actual graphic. 
+
+
 
 
 ## G2GCalc
 
-The core program. Currently runs mummer and retrieves MUMs , filters overlapping MUMs and keeping the longest alignment between any two overlapping MUMs, then calculates distance as:
+The core program. Currently runs mummer and retrieves MUMs , filters overlapping MUMs and keeping the longest alignment between any two overlapping MUMs, then calculates distance as the average calculated distance between 
+reciprical MUMmer runs. Where a single distance metric is:
 
-2 * (Total Identical Nucleotides) / (Length of MUMs from Reference) + (Length of MUMs from Query) 
+	2 * (Total Identical Nucleotides) / (Length of MUMs from Reference) + (Length of MUMs from Query) 
 
 
 __Usage__:
