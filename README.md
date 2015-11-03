@@ -8,12 +8,16 @@ While the authors of that publication rightly believe that the BLAST algorithm g
 
 These programs provide a minimal implementation of their described methods so that the nucmer program could instead be employed using greedy trimming along with the equation __d<sub>4</sub>__ to calculate a distance between two genome assemblies.
 ##Citing this work:
+
 If you use this program or any of its outputs in your research please cite the following:
+
 ```
 Meier-Kolthoff, Jan and Auch, Alexander and Klenk, Hans-Peter and Goker, Markus
 Genome sequence-based species delimitation with confidence intervals and improved distance functions
 BMC Bioinformatics
 2013
+
+Dylan Storey. (2015). Genome2GenomeDistance: First Release. Zenodo. 10.5281/zenodo.33152
 ```
 ##Synopsis of usage
 
