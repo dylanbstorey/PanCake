@@ -7,6 +7,7 @@ Implementation of methods described in Meier-Kolthoff et al 2013. [Article Here]
 While the authors of that publication rightly believe that the BLAST algorithm gives more sensitivity for these questions , it comes at an extreme cost making application to large datasets computationally intractible. 
 
 These programs provide a minimal implementation of their described methods so that the nucmer program could instead be employed using greedy trimming along with the equation __d<sub>4</sub>__ to calculate a distance between two genome assemblies.
+
 ##Citing this work:
 
 If you use this program or any of its outputs in your research please cite the following:
@@ -19,6 +20,14 @@ BMC Bioinformatics
 
 Dylan Storey. (2015). Genome2GenomeDistance: First Release. Zenodo. 10.5281/zenodo.33152
 ```
+##Installation
+The only non core Perl packages required come from [Inline](https://metacpan.org/pod/Inline::CPP).
+To install:
+```bash
+sudo cpan install Inline
+sudo cpan install Inline::CPP
+```
+
 ##Synopsis of usage
 
 ```bash
