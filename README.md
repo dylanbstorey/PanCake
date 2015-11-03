@@ -29,6 +29,7 @@ sudo cpan install Inline::CPP
 ```
 
 ##Synopsis of usage
+__note__: The first time you run these programs a folder (_Inline or .inline) will appear. Don't delete this as it holds libraries for portions of the program.
 
 ```bash
 cd test/
