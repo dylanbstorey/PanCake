@@ -48,7 +48,7 @@ A big run will look a little something like this:
 
 For reference we compared our method against the G2GDC web server and while we're not getting the exact same number we're close enough that I'm comfortable saying we're right.
 
-![Comparison to G2GDC Web Server](/home/dstorey/Desktop/Genome2GenomeDistance/Extras/MethodsComparisons/G2GDC_Webserver/UsVsServer.png)
+![Comparison to G2GDC Web Server](Extras/MethodsComparisons/G2GDC_Webserver/UsVsServer.png)
 
 
 
