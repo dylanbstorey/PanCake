@@ -18,7 +18,7 @@ Genome sequence-based species delimitation with confidence intervals and improve
 BMC Bioinformatics
 2013
 
-Dylan Storey. (2015). Genome2GenomeDistance: First Release. Zenodo. 10.5281/zenodo.33152
+Dylan Storey. (2015). Genome2GenomeDistance: Narya. Zenodo. 10.5281/zenodo.33155
 ```
 ##Installation
 The only non core Perl packages required come from [Inline](https://metacpan.org/pod/Inline::CPP).
