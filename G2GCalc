@@ -57,7 +57,7 @@ open (MANIFEST, '<' , $manifest) || die $!;
 if ($threads == 1){
 	while (my $line = <MANIFEST>){
 		my ($ref , $query) = split (/\s/,$line);
-		print OUT join ("\t" , ($ref ,$query ,G2G($ref , $query))) . "\n";
+		print OUT join ("\t" , ((fileparse($ref, qr/\.[^.]*/))[0] ,(fileparse($query, qr/\.[^.]*/))[0] ,G2G($ref , $query))) . "\n";
 		}
 	}
 else{
@@ -66,13 +66,14 @@ else{
 	my @LINES = <MANIFEST>;
 	my $queue = Thread::Queue->new(); $queue->enqueue(@LINES); $queue->end();
 	
+
 	map{
 		push @threads, threads->create(
 			sub {
 				my @sub_lines;
 				while(my $line = $queue->dequeue()){
 					my ($ref , $query) = split (/\s/,$line);
-					push @sub_lines , join ("\t" , ($ref ,$query ,G2G($ref , $query)));
+					push @sub_lines , join ("\t" , ((fileparse($ref, qr/\.[^.]*/))[0] ,(fileparse($query, qr/\.[^.]*/))[0] ,G2G($ref , $query)));
 					}
 				return \@sub_lines;
 				}

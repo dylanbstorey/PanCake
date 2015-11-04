@@ -24,6 +24,7 @@ use Getopt::Long;
 use POSIX qw/ceil/;
 use File::Basename;
 use File::Copy;
+use File::Spec;
 
 my @files;
 my $chunk_size;
@@ -34,20 +35,23 @@ GetOptions(
 	) || die $!;
 
 $chunk_size //= 10,000;
+$chunk_size = 60,000 if ($chunk_size > 60000);
 
 my $chunk_number = 0;
 my $current_chunk_size=0;
-open (OUT , '>' , "$chunk_number.man") || die $!;
+mkdir("Chunk-$chunk_number");
+open (OUT , '>' , "Chunk-$chunk_number/$chunk_number.man") || die $!;
 
 for ( my $i = 0 ; $i < @files ; $i++){
 	for (my $j=$i; $j < @files; $j++){
-		print OUT join("\t", ($files[$i] , $files[$j])) . "\n";
+		print OUT join("\t", (File::Spec->rel2abs($files[$i]) ,File::Spec->rel2abs( $files[$j]))). "\n";
 		$current_chunk_size++;
 		if ($current_chunk_size == $chunk_size){
 			close OUT;
 			$chunk_number++;
 			$current_chunk_size = 0;
-			open (OUT , '>' , "$chunk_number.man") || die $!;			
+			mkdir("Chunk-$chunk_number");	
+			open (OUT , '>' , "Chunk-$chunk_number/$chunk_number.man") || die $!;	
 			}
 		}
 	}

@@ -69,9 +69,6 @@ sub heatmap_mtx{
 	print OUT "png(file=\"$hm\",width=12*720,height=12*720,res=720,point=14)\n";
 	print OUT "mtx <- heatmap.2 (data,denscol=\"green\",trace=\"none\",dendrogram=\"row\",symm=TRUE,keysize=0.7,main=\"Genome Distance Clustering\" ,cexRow=0.2,offsetRow=0,labCol = \" \")\n";
 	print OUT "dev.off()\n";
-	print OUT "data=data[rev(mtx\$rowInd),mtx\$colInd]\n";
-	print OUT "write.table(data, file=\"$out\" , sep=\"\\t\", row.names=FALSE, quote=FALSE)\n";
-
 	my $system = ("Rscript $R > /dev/null 2>&1");
 	if (system($system) == 0){
 		return 1;
