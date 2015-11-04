@@ -21,13 +21,11 @@
 
 use warnings;
 use strict;
-use threads;
-use Thread::Queue;
-use Thread::Semaphore;
 use Getopt::Long;
 use Data::Dumper;
 use File::Basename;
-use Tie::File;
+use DB_File;
+
 
 
 my @files;
@@ -39,55 +37,126 @@ my $output = {};
 GetOptions(
 	'manifest:s' => \$manifest,
 	'threads:i' => \$threads,
-	
 	) || die $!;
 
-my $out = fileparse($manifest, qr/\.[^.]*/);
-$out.=".mtx";
 die usage() unless ($manifest && $threads);
 
+#Set all of our file names;
+my $pairs_db = fileparse($manifest, qr/\.[^.]*/);
+my $file_db = $pairs_db;
+my $out = $pairs_db . '.mtx';
+$pairs_db.=".bdb";
+$file_db.="_files.bdb";
 
 
+my %pairs;
+my %files;
 
+tie %pairs, "DB_File" , $pairs_db, O_RDWR|O_CREAT, 0666, $DB_HASH or die ("Cannot open $pairs_db : $!");
+tie %files, "DB_File" , $file_db, O_RDWR|O_CREAT, 0666, $DB_HASH or die ("Cannot open $file_db : $!");
 
-open(OUT,'>',$out) || die $!;
 open (MANIFEST, '<' , $manifest) || die $!;
 
 
-if ($threads == 1){
-	while (my $line = <MANIFEST>){
-		my ($ref , $query) = split (/\s/,$line);
-		print OUT join ("\t" , ((fileparse($ref, qr/\.[^.]*/))[0] ,(fileparse($query, qr/\.[^.]*/))[0] ,G2G($ref , $query))) . "\n";
-		}
-	}
-else{
+while (my $line = <MANIFEST>){
 
-	my @threads;
-	my @LINES = <MANIFEST>;
-	my $queue = Thread::Queue->new(); $queue->enqueue(@LINES); $queue->end();
+	my ($ref , $query) = split (/\s/,$line);
+	my $r_base = (fileparse($ref, qr/\.[^.]*/))[0];
+	my $q_base = (fileparse($query, qr/\.[^.]*/))[0];
+
+	#set search direction 1
+	my $out1 = $r_base .'_'. $q_base;
+	my $mummer1 = "nucmer -mum -l 44 $ref $query -p $out1  2> /dev/null";
+	my $show_coords1 = "show-coords -dTlorH $out1.delta >$out1.coords 2> /dev/null";
+	
+	#set search direction 2
+	my $out2 = $out1;
+	my $mummer2 = "nucmer -mum -l 44 $query $ref -p $out2  2> /dev/null";
+	my $show_coords2 = "show-coords -dTlorH $out2.delta >$out2.coords 2> /dev/null";
+	
+	#build our key.
+	my $pairs_lookup = "$r_base\t$q_base";
+	
+	#if it is stored as a pair go to the next line in the file;
+	next if ($pairs{$pairs_lookup});
+
+
+
+	#check if any of the intermediate files we need have been stored before
+	#Dump them to disk if they have
 	
 
-	map{
-		push @threads, threads->create(
-			sub {
-				my @sub_lines;
-				while(my $line = $queue->dequeue()){
-					my ($ref , $query) = split (/\s/,$line);
-					push @sub_lines , join ("\t" , ((fileparse($ref, qr/\.[^.]*/))[0] ,(fileparse($query, qr/\.[^.]*/))[0] ,G2G($ref , $query)));
-					}
-				return \@sub_lines;
-				}
-			)
-		}(1..$threads);	
 
-	map{
-		map{
-			print OUT $_ ."\n";
-			}@{$_->join()};
+	#If a needed file for the pair doesn't exist , create it.
 
-		}@threads;
+	if (system($mummer1) == 0){
+		open (IN , '<' , "$out1.delta" ) || die $!;
+		$files{"$out1.delta"} = do {local $/; <IN>};
+		close IN;
+		}
+	else{
+		unlink("$out1.delta");
+		unlink("$out1.ntref");
+		unlink("$out1.mgaps");
+		print STDERR "$ref vs $query mummer search failed \n";
+		next;
+		}
+
+
+	if (system($mummer2) == 0){
+		open (IN , '<' , "$out2.delta" ) || die $!;
+		$files{"$out2.delta"} = do {local $/; <IN>};
+		close IN;
+		}
+	else{
+		unlink("$out2.delta");
+		unlink("$out2.ntref");
+		unlink("$out2.mgaps");
+		print STDERR "$query vs $ref mummer search failed \n";
+		next;
+		}
+
+
+
+
+	if(system($show_coords1)== 0){
+		open (IN , '<' , "$out1.coords" ) || die $!;
+		$files{"$out1.delta"} = do {local $/; <IN>};
+		close IN;
+		}
+	else{
+		unlink("$out1.coords");
+		print STDERR "$out1 show-coords failed";
+		next;
+		}
+
+	if(system($show_coords2)== 0){
+		open (IN , '<' , "$out2.coords" ) || die $!;
+		$files{"$out1.delta"} = do {local $/; <IN>};
+		close IN;
+		}
+	else{
+		unlink("$out2.coords");
+		print STDERR "$out2 show-coords failed";
+		next;
+		}
+		
+
+	#Get our pairs;
+	$pairs{$pairs_lookup} = (calc_distance("$out1.coords") + calc_distance("$out2.coords")) / 2;
+
+	#delete our files;
+	map {unlink($_)}( "$out1.delta" , "$out2.delta" , "$out1.coords","$out2.coords" );
+	}
+	
+
+open (OUT , '>' , $out) || die "Can't open $out for writing";
+foreach(keys %pairs){
+	print OUT join("\t" ,($_,$pairs{$_})) . "\n";
 	}
 
+untie %pairs;
+untie %files;
 
 close MANIFEST;
 close OUT;
@@ -96,67 +165,6 @@ exit;
 
 
 
-sub G2G{
-	my $ref = shift;
-	my $query = shift;
-	my $r_base = fileparse($ref, qr/\.[^.]*/);
-	my $q_base = fileparse($query, qr/\.[^.]*/);
-
-	#set search direction 1
-	my $out1 = $r_base .'_'. $q_base; $out =~ s/\//_/g;
-	my $mummer1 = "nucmer -mum -l 44 $ref $query -p $out1  2> /dev/null";
-
-
-	#set search direction 2
-	my $out2 = $q_base .'_'. $r_base; $out =~ s/\//_/g;
-	my $mummer2 = "nucmer -mum -l 44 $query $ref -p $out2  2> /dev/null";
-
-
-
-	unless (-e "$out1.delta"){
-		unless (system($mummer1) == 0){
-			unlink("$out1.delta");
-			unlink("$out1.ntref");
-			unlink("$out1.mgaps");
-			print STDERR "$ref vs $query mummer search failed \n";
-			return undef;
-			}
-		}
-
-	unless (-e "$out2.delta"){
-		unless (system($mummer2) == 0){
-			unlink("$out2.delta");
-			unlink("$out2.ntref");
-			unlink("$out2.mgaps");
-			print STDERR "$query vs $ref mummer search failed \n";
-			return undef;
-			}
-		}
-
-	my $show_coords1 = "show-coords -dTlorH $out1.delta >$out1.coords 2> /dev/null";
-	my $show_coords2 = "show-coords -dTlorH $out2.delta >$out2.coords 2> /dev/null";
-
-
-	
-	unless (-e "$out1.coords" ){
-		unless(system($show_coords1)== 0){
-			unlink("$out1.coords");
-			print STDERR "$out1 show-coords failed";
-			return undef;
-			}
-		}
-
-	unless (-e "$out2.coords" ){
-		unless(system($show_coords2)== 0){
-			unlink("$out2.coords");
-			print STDERR "$out2 show-coords failed";
-			return undef;
-			}
-		}
-
-
-	return (calc_distance("$out1.coords") + calc_distance("$out2.coords")) / 2;
-	}
 
 
 sub calc_distance{

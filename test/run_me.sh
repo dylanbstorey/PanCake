@@ -5,7 +5,7 @@
 ../Split_Manifests --files Genomes/*.fa --chunk_size 200
 
 #Run them from a single node 
-for i in *.man; do cd Chunk-$i; ../G2GCalc --threads 32 --manifest $i ;cd .. ; done 
+parallel '../G2GCalc --manifest {}' ::: *.man
 
 
 #SBATCH

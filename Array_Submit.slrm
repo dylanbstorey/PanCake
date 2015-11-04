@@ -1,13 +1,10 @@
 #!/bin/bash -l
 #SBATCH -N 1
-#SBATCH -n 4
+#SBATCH -n 1
 #SBATCH -o G2G_%A_%a.stdout
 #SBATCH -e G2G_%A_%a.stderr
 #SBATCH -p med
 
 module load mummer
 
-cd Chunk-${SLURM_ARRAY_TASK_ID}
-touch ${SLURM_ARRAY_TASK_ID}.mtx
-/home/dstorey/bin/Genome2GenomeDistance/G2GCalc --files ${SLURM_ARRAY_TASK_ID}.man --threads 4
-mv ${SLURM_ARRAY_TASK_ID}.mtx ..
+/home/dstorey/bin/Genome2GenomeDistance/G2GCalc --manifest ${SLURM_ARRAY_TASK_ID}.man
