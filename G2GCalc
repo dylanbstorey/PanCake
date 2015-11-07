@@ -43,17 +43,13 @@ die usage() unless ($manifest && $threads);
 
 #Set all of our file names;
 my $pairs_db = fileparse($manifest, qr/\.[^.]*/);
-my $file_db = $pairs_db;
 my $out = $pairs_db . '.mtx';
 $pairs_db.=".bdb";
-$file_db.="_files.bdb";
 
 
 my %pairs;
-my %files;
 
 tie %pairs, "DB_File" , $pairs_db, O_RDWR|O_CREAT, 0666, $DB_HASH or die ("Cannot open $pairs_db : $!");
-tie %files, "DB_File" , $file_db, O_RDWR|O_CREAT, 0666, $DB_HASH or die ("Cannot open $file_db : $!");
 
 open (MANIFEST, '<' , $manifest) || die $!;
 
@@ -89,12 +85,7 @@ while (my $line = <MANIFEST>){
 
 	#If a needed file for the pair doesn't exist , create it.
 
-	if (system($mummer1) == 0){
-		open (IN , '<' , "$out1.delta" ) || die $!;
-		$files{"$out1.delta"} = do {local $/; <IN>};
-		close IN;
-		}
-	else{
+	unless (system($mummer1) == 0){
 		unlink("$out1.delta");
 		unlink("$out1.ntref");
 		unlink("$out1.mgaps");
@@ -103,12 +94,7 @@ while (my $line = <MANIFEST>){
 		}
 
 
-	if (system($mummer2) == 0){
-		open (IN , '<' , "$out2.delta" ) || die $!;
-		$files{"$out2.delta"} = do {local $/; <IN>};
-		close IN;
-		}
-	else{
+	unless (system($mummer2) == 0){
 		unlink("$out2.delta");
 		unlink("$out2.ntref");
 		unlink("$out2.mgaps");
@@ -119,23 +105,13 @@ while (my $line = <MANIFEST>){
 
 
 
-	if(system($show_coords1)== 0){
-		open (IN , '<' , "$out1.coords" ) || die $!;
-		$files{"$out1.delta"} = do {local $/; <IN>};
-		close IN;
-		}
-	else{
+	unless(system($show_coords1)== 0){
 		unlink("$out1.coords");
 		print STDERR "$out1 show-coords failed";
 		next;
 		}
 
-	if(system($show_coords2)== 0){
-		open (IN , '<' , "$out2.coords" ) || die $!;
-		$files{"$out1.delta"} = do {local $/; <IN>};
-		close IN;
-		}
-	else{
+	unless(system($show_coords2)== 0){
 		unlink("$out2.coords");
 		print STDERR "$out2 show-coords failed";
 		next;
@@ -156,7 +132,6 @@ foreach(keys %pairs){
 	}
 
 untie %pairs;
-untie %files;
 
 close MANIFEST;
 close OUT;

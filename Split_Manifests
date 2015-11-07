@@ -35,7 +35,6 @@ GetOptions(
 	) || die $!;
 
 $chunk_size //= 10000;
-$chunk_size = 60000 if ($chunk_size > 60000);
 
 my $chunk_number = 0;
 my $current_chunk_size=0;
