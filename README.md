@@ -1,4 +1,3 @@
-[![DOI](https://zenodo.org/badge/11062/dylanstorey/Genome2GenomeDistance.svg)](https://zenodo.org/badge/latestdoi/11062/dylanstorey/Genome2GenomeDistance)
 
 # Genome2GenomeDistance
 
