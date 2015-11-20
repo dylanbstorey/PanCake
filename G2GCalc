@@ -24,8 +24,7 @@ use strict;
 use Getopt::Long;
 use Data::Dumper;
 use File::Basename;
-use DB_File;
-
+use Tie::File;
 
 
 my @files;
@@ -46,16 +45,21 @@ my $pairs_db = fileparse($manifest, qr/\.[^.]*/);
 my $out = $pairs_db . '.mtx';
 $pairs_db.=".bdb";
 
+if (-e $out){
+	open (OUT , '>', $out) || die $!;
+	}
+else{
+	open (OUT , '>>' , $out) || die $!;
+	}
 
-my %pairs;
-
-tie %pairs, "DB_File" , $pairs_db, O_RDWR|O_CREAT, 0666, $DB_HASH or die ("Cannot open $pairs_db : $!");
+my @manifest; 
+tie @manifest, 'Tie::File', $manifest, memory => 200_000_000 || die $!;
 
 open (MANIFEST, '<' , $manifest) || die $!;
 
 
-while (my $line = <MANIFEST>){
-
+foreach my $line (@manifest){
+	next unless $line;
 	my ($ref , $query) = split (/\s/,$line);
 	my $r_base = (fileparse($ref, qr/\.[^.]*/))[0];
 	my $q_base = (fileparse($query, qr/\.[^.]*/))[0];
@@ -73,8 +77,6 @@ while (my $line = <MANIFEST>){
 	#build our key.
 	my $pairs_lookup = "$r_base\t$q_base";
 	
-	#if it is stored as a pair go to the next line in the file;
-	next if ($pairs{$pairs_lookup});
 
 
 
@@ -119,22 +121,17 @@ while (my $line = <MANIFEST>){
 		
 
 	#Get our pairs;
-	$pairs{$pairs_lookup} = (calc_distance("$out1.coords") + calc_distance("$out2.coords")) / 2;
-
+	my $distance = (calc_distance("$out1.coords") + calc_distance("$out2.coords")) / 2;
+	print OUT "$r_base\t$q_base\t$distance\n";
 	#delete our files;
+	$line = '';
 	map {unlink($_)}( "$out1.delta" , "$out2.delta" , "$out1.coords","$out2.coords" );
 	}
 	
 
-open (OUT , '>' , $out) || die "Can't open $out for writing";
-foreach(keys %pairs){
-	print OUT join("\t" ,($_,$pairs{$_})) . "\n";
-	}
-
-untie %pairs;
-
 close MANIFEST;
 close OUT;
+untie @manifest;
 exit;
 
 
