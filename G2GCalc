@@ -63,23 +63,11 @@ close (MANIFEST);
 my $update_counter = 0;
 
 
-my $i = 0;
-while  ($i < $#manifest){
 
-	if ($update_counter == 100){
-		open (MANIFEST, '>' , $manifest_file) || die $!;
-		print MANIFEST join("\n",@manifest);
-		close MANIFEST;
-		$update_counter = 0;
-		}
-
-
-	if ($manifest[$i] eq ''){
-		$i++;
-		next;
-		} 
+while  (@manifest){
+	my $line = shift @manifest;
 	
-	my ($ref , $query) = split (/\s/,$manifest[$i]);
+	my ($ref , $query) = split (/\s/,$line);
 	my $r_base = (fileparse($ref, qr/\.[^.]*/))[0];
 	my $q_base = (fileparse($query, qr/\.[^.]*/))[0];
 
@@ -126,10 +114,15 @@ while  ($i < $#manifest){
 	my $distance = (calc_distance("$out1.coords") + calc_distance("$out2.coords")) / 2;
 	print OUT "$r_base\t$q_base\t$distance\n";
 	#delete our files;
-	$manifest[$i] = '';
 	map {unlink($_)}( "$out1.delta" , "$out2.delta" , "$out1.coords","$out2.coords" );
-	$i++;
 	$update_counter++;
+	if ($update_counter == 100){
+		open (MANIFEST, '>' , $manifest_file) || die $!;
+		print MANIFEST join("\n",@manifest);
+		close MANIFEST;
+		$update_counter = 0;
+		}
+
 	}
 	
 
