@@ -27,23 +27,26 @@ use File::Basename;
 use Tie::File;
 
 
-my @files;
-my $threads = 1;
-my $manifest = '';
+my $manifest_file = '';
 my $output = {};
 
 
 GetOptions(
-	'manifest:s' => \$manifest,
-	'threads:i' => \$threads,
+	'manifest:s' => \$manifest_file,
 	) || die $!;
 
-die usage() unless ($manifest && $threads);
+die usage() unless ($manifest_file);
+
+#set signal handler for killed runs.
+$SIG{INT}  = \&signal_handler;
+$SIG{TERM} =\&signal_handler;
+
+
 
 #Set all of our file names;
-my $pairs_db = fileparse($manifest, qr/\.[^.]*/);
+my $pairs_db = fileparse($manifest_file, qr/\.[^.]*/);
 my $out = $pairs_db . '.mtx';
-$pairs_db.=".bdb";
+
 
 if (-e $out){
 	open (OUT , '>', $out) || die $!;
@@ -53,14 +56,30 @@ else{
 	}
 
 my @manifest; 
-tie @manifest, 'Tie::File', $manifest, memory => 200_000_000 || die $!;
+open (MANIFEST, '<' , $manifest_file) || die $!;
+@manifest = <MANIFEST>; chomp @manifest;
+close (MANIFEST);
 
-open (MANIFEST, '<' , $manifest) || die $!;
+my $update_counter = 0;
 
 
-foreach my $line (@manifest){
-	next unless $line;
-	my ($ref , $query) = split (/\s/,$line);
+my $i = 0;
+while  ($i < $#manifest){
+
+	if ($update_counter == 100){
+		open (MANIFEST, '>' , $manifest_file) || die $!;
+		print MANIFEST join("\n",@manifest);
+		close MANIFEST;
+		$update_counter = 0;
+		}
+
+
+	if ($manifest[$i] eq ''){
+		$i++;
+		next;
+		} 
+	
+	my ($ref , $query) = split (/\s/,$manifest[$i]);
 	my $r_base = (fileparse($ref, qr/\.[^.]*/))[0];
 	my $q_base = (fileparse($query, qr/\.[^.]*/))[0];
 
@@ -74,49 +93,32 @@ foreach my $line (@manifest){
 	my $mummer2 = "nucmer -mum -l 44 $query $ref -p $out2  2> /dev/null";
 	my $show_coords2 = "show-coords -dTlorH $out2.delta >$out2.coords 2> /dev/null";
 	
-	#build our key.
-	my $pairs_lookup = "$r_base\t$q_base";
-	
-
-
-
-	#check if any of the intermediate files we need have been stored before
-	#Dump them to disk if they have
-	
-
-
-	#If a needed file for the pair doesn't exist , create it.
-
 	unless (system($mummer1) == 0){
 		unlink("$out1.delta");
 		unlink("$out1.ntref");
 		unlink("$out1.mgaps");
 		print STDERR "$ref vs $query mummer search failed \n";
-		next;
+		die;
 		}
-
 
 	unless (system($mummer2) == 0){
 		unlink("$out2.delta");
 		unlink("$out2.ntref");
 		unlink("$out2.mgaps");
 		print STDERR "$query vs $ref mummer search failed \n";
-		next;
+		die;
 		}
-
-
-
 
 	unless(system($show_coords1)== 0){
 		unlink("$out1.coords");
 		print STDERR "$out1 show-coords failed";
-		next;
+		die;
 		}
 
 	unless(system($show_coords2)== 0){
 		unlink("$out2.coords");
 		print STDERR "$out2 show-coords failed";
-		next;
+		die;
 		}
 		
 
@@ -124,17 +126,29 @@ foreach my $line (@manifest){
 	my $distance = (calc_distance("$out1.coords") + calc_distance("$out2.coords")) / 2;
 	print OUT "$r_base\t$q_base\t$distance\n";
 	#delete our files;
-	$line = '';
+	$manifest[$i] = '';
 	map {unlink($_)}( "$out1.delta" , "$out2.delta" , "$out1.coords","$out2.coords" );
+	$i++;
+	$update_counter++;
 	}
 	
 
+open (MANIFEST, '>' , $manifest_file) || die $!;
+print MANIFEST join("\n",@manifest);
 close MANIFEST;
+unlink $manifest_file if -z $manifest_file;
+
 close OUT;
-untie @manifest;
+
 exit;
 
 
+sub signal_handler {
+	open (MANIFEST, '>' , $manifest_file) || die $!;
+	print MANIFEST join("\n",@manifest);
+	close MANIFEST;
+	die "Caught signal $!";
+	}
 
 
 
