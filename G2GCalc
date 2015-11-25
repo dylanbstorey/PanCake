@@ -186,12 +186,10 @@ sub calc_distance{
 
 sub greedy_overlap{
 	my ($line1 , $line2 ,$index1,$index2 ) = @_;
-
-	
 	#split to array refs
 	$line1 = [split(/\s+/ , $line1)];
 	$line2 = [split(/\s+/ , $line2)];
-
+	
 	#swap in place for well formed ranges. (Not sure this is strictly needed but better safe than sorry)
 	($line1->[1] , $line1->[0] ) = ( $line1->[0] , $line1->[1] )if ($line1->[0] > $line1->[1]);
 	($line2->[1] , $line2->[0] ) = ( $line2->[0] , $line2->[1] )if ($line2->[0] > $line2->[1]);

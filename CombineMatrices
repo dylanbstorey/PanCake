@@ -32,7 +32,7 @@ my $max_elements;
 my @files;
 my $out;
 
-$max_elements = 10800;
+
 GetOptions(
 	'max_elements:i' => \$max_elements,
 	'files=s@{,}' => \@files,
