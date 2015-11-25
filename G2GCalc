@@ -49,10 +49,10 @@ my $out = $pairs_db . '.mtx';
 
 
 if (-e $out){
-	open (OUT , '>', $out) || die $!;
+	open (OUT , '>>' , $out) || die $!;	
 	}
 else{
-	open (OUT , '>>' , $out) || die $!;
+	open (OUT , '>', $out) || die $!;
 	}
 
 my @manifest; 
