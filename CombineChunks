@@ -1,0 +1,223 @@
+#!/usr/bin/perl
+# Copyright (c) 2015 Dylan B Storey
+
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+use warnings;
+use warnings;
+use strict;
+
+use Inline CPP =>  config => ccflags => '-std=c++11';
+use Inline CPP => 'DATA';
+
+use Getopt::Long;
+
+
+my $max_elements;
+my @files;
+my $out;
+
+
+GetOptions(
+	'max_elements:i' => \$max_elements,
+	'files=s@{,}' => \@files,
+	'out=s' => \$out
+	) || die usage();
+
+$out //= "join.mtx";
+
+die usage() unless ($max_elements && $out);
+
+my $matrix = DistanceMatrix->new($max_elements);
+
+map{
+	$matrix->AddPairs($_);
+	}@files;
+
+$matrix->PrintMatrix($out);
+heatmap_mtx($out);
+exit;
+
+sub heatmap_mtx{
+	
+	my $hm = "$out.png";
+	
+	my $R = "$out.hm.R";
+	open (OUT,'>',$R) || die $!;
+
+	
+	print OUT "data<-read.table(\"$out\" , header=TRUE )\n";
+	print OUT "rownames(data)=colnames(data)\n";
+	print OUT "data=as.matrix(data)\n";
+	print OUT "library(gplots)\n";
+
+	print OUT "png(file=\"$hm\",width=12*720,height=12*720,res=720,point=14)\n";
+	print OUT "mtx <- heatmap.2 (data,denscol=\"green\",trace=\"none\",dendrogram=\"row\",symm=TRUE,keysize=0.7,main=\"Genome Distance Clustering\" ,cexRow=0.2,offsetRow=0,labCol = \" \")\n";
+	print OUT "dev.off()\n";
+	my $system = ("Rscript $R > /dev/null 2>&1");
+	if (system($system) == 0){
+		return 1;
+		}
+	else{
+		return  0;
+		}
+
+
+	}
+
+sub usage{
+	print"./CombineChunks --max_elements <int> --files <files> --out <outfile>\n" ;
+	}
+
+__DATA__
+__CPP__
+
+
+#include <unordered_map>
+#include <unordered_set>
+#include <string>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <cstdio>
+
+
+class DistanceMatrix{
+
+public:
+	DistanceMatrix(int);
+	~DistanceMatrix();
+	void AddPairs(SV*);
+	void PrintMatrix(SV*);
+	
+private:
+	int number_of_inserts = 0;
+	std::unordered_map <std::string , int> index_to_keys;
+	std::vector <std::vector<float> > matrix;
+	int max_elements;
+	};
+
+DistanceMatrix::DistanceMatrix (int max_elements){
+	std::vector<float> blank (max_elements, 0);	
+	for( int x = 0; x < max_elements; ++x){
+		matrix.push_back(blank);
+		}
+	}
+DistanceMatrix::~DistanceMatrix(){	}
+
+void DistanceMatrix::PrintMatrix(SV* outfile){
+	std::string file_name =SvPVX(outfile);
+	std::ofstream file(file_name);
+
+	if (!file.is_open()){
+		return;
+		}
+
+	auto end_of_keys = index_to_keys.end();
+	auto begining_of_keys = index_to_keys.begin();
+
+	int size = index_to_keys.size();
+	
+
+
+	auto header_it = begining_of_keys;
+	while (true){
+		file << header_it->first;
+		++header_it;
+		if (header_it != end_of_keys){
+			file << "\t";
+			}
+		else{
+			break;
+			}
+		}
+	file << std::endl;
+//print the matrix
+	for (auto x = begining_of_keys ; x != end_of_keys ; ++x){
+		auto y = begining_of_keys;
+		while (true){
+			file << std::to_string(matrix[x->second][y->second]);
+			++y;
+			if (y != end_of_keys){
+				file << "\t";
+				}
+			else{
+				break;
+				}
+			}
+		file << std::endl;
+		}
+	file.close();
+
+	}
+
+void DistanceMatrix::AddPairs(SV* file_path){
+	std::string S_file_path = SvPVX(file_path);
+	std::ifstream file (S_file_path);
+
+	std::unordered_set <std::string> set_in_file;
+	if (file.is_open()){
+		std::string line;
+
+		while (getline (file,line)){
+			std::istringstream iss(line);
+			if (iss.fail() || iss.bad()){
+				std::cerr << "Failed to parse line!"<< std::endl;
+				}
+			std::string target;
+			std::string query;
+			std::string value;
+			iss >> target >> query >> value;
+			set_in_file.insert(target);
+			set_in_file.insert(query);
+			}
+		
+		//for each string we have try to insert it into the index_to_keys	
+		for (auto x : set_in_file){
+			auto got = index_to_keys.find(x);
+			if (got == index_to_keys.end()){
+				index_to_keys[x] = number_of_inserts;
+				number_of_inserts++;
+				}
+			}
+
+		//back to the front
+		file.clear();
+		file.seekg(0,file.beg);
+
+		while (getline (file,line)){
+			std::istringstream iss(line);
+			if (iss.fail() || iss.bad()){
+				std::cerr << "Failed to parse line!"<< std::endl;
+				}
+			std::string target;
+			std::string query;
+			std::string value;
+			iss >> target >> query >> value;
+			
+			float f_value = std::stod(value);
+			int i_value = (int) (f_value*100);
+
+			matrix[index_to_keys[target]][index_to_keys[query]]= f_value;
+			matrix[index_to_keys[query]][index_to_keys[target]]= f_value;
+			}
+		}
+	file.close();
+	}
+

@@ -1,0 +1,236 @@
+#!/usr/bin/perl
+# Copyright (c) 2015 Dylan B Storey
+
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+
+use warnings;
+use strict;
+use Getopt::Long;
+use Data::Dumper;
+use File::Basename;
+use Tie::File;
+
+
+my $manifest_file = '';
+my $output = {};
+my $help = 0;
+
+GetOptions(
+	'manifest:s' => \$manifest_file,
+	'help+' => \$help,
+	'h+' => \$help
+	) || die usage();
+
+die usage() unless ($manifest_file);
+die usage() if ($help);
+
+#set signal handler for killed runs.
+$SIG{INT}  = \&signal_handler;
+$SIG{TERM} =\&signal_handler;
+
+
+
+#Set all of our file names;
+my $pairs_db = fileparse($manifest_file, qr/\.[^.]*/);
+my $out = $pairs_db . '.mtx';
+
+
+if (-e $out){
+	open (OUT , '>>' , $out) || die $!;	
+	}
+else{
+	open (OUT , '>', $out) || die $!;
+	}
+
+my @manifest; 
+open (MANIFEST, '<' , $manifest_file) || die $!;
+@manifest = <MANIFEST>; chomp @manifest;
+close (MANIFEST);
+
+my $update_counter = 0;
+
+
+
+while  (@manifest){
+	my $line = shift @manifest;
+	
+	my ($ref , $query) = split (/\s/,$line);
+	my $r_base = (fileparse($ref, qr/\.[^.]*/))[0];
+	my $q_base = (fileparse($query, qr/\.[^.]*/))[0];
+
+	#set search direction 1
+	my $out1 = $r_base .'_'. $q_base;
+	my $mummer1 = "nucmer -mum -l 44 $ref $query -p $out1  2> /dev/null";
+	my $show_coords1 = "show-coords -dTlorH $out1.delta >$out1.coords 2> /dev/null";
+	
+	#set search direction 2
+	my $out2 = $out1;
+	my $mummer2 = "nucmer -mum -l 44 $query $ref -p $out2  2> /dev/null";
+	my $show_coords2 = "show-coords -dTlorH $out2.delta >$out2.coords 2> /dev/null";
+	
+	unless (system($mummer1) == 0){
+		unlink("$out1.delta");
+		unlink("$out1.ntref");
+		unlink("$out1.mgaps");
+		print STDERR "$ref vs $query mummer search failed \n";
+		die;
+		}
+
+	unless (system($mummer2) == 0){
+		unlink("$out2.delta");
+		unlink("$out2.ntref");
+		unlink("$out2.mgaps");
+		print STDERR "$query vs $ref mummer search failed \n";
+		die;
+		}
+
+	unless(system($show_coords1)== 0){
+		unlink("$out1.coords");
+		print STDERR "$out1 show-coords failed";
+		die;
+		}
+
+	unless(system($show_coords2)== 0){
+		unlink("$out2.coords");
+		print STDERR "$out2 show-coords failed";
+		die;
+		}
+		
+
+	#Get our pairs;
+	my $distance = (calc_distance("$out1.coords") + calc_distance("$out2.coords")) / 2;
+	print OUT "$r_base\t$q_base\t$distance\n";
+	#delete our files;
+	map {unlink($_)}( "$out1.delta" , "$out2.delta" , "$out1.coords","$out2.coords" );
+	$update_counter++;
+	if ($update_counter == 100){
+		open (MANIFEST, '>' , $manifest_file) || die $!;
+		print MANIFEST join("\n",@manifest);
+		close MANIFEST;
+		$update_counter = 0;
+		}
+
+	}
+	
+
+open (MANIFEST, '>' , $manifest_file) || die $!;
+print MANIFEST join("\n",@manifest);
+close MANIFEST;
+unlink $manifest_file if -z $manifest_file;
+
+close OUT;
+
+exit;
+
+
+sub signal_handler {
+	open (MANIFEST, '>' , $manifest_file) || die $!;
+	print MANIFEST join("\n",@manifest);
+	close MANIFEST;
+	die "Caught signal $!";
+	}
+
+
+
+
+sub calc_distance{
+	open (IN , '<' , $_[0]) || die $! if (-e $_[0]);
+	my @lines =<IN>; chomp @lines; close IN;
+	my %alignments;
+
+	my $n_records = @lines;
+	my @marked_for_deletion;
+
+	for my $i (0..$n_records-1){
+		for my $j ($i+1..$n_records-1){
+			my $to_delete = greedy_overlap($lines[$i] , $lines[$j] , $i , $j);
+			push @marked_for_deletion , $to_delete if $to_delete;
+			}
+		}
+
+	
+
+	@marked_for_deletion = do {my %seen ; grep {!$seen{$_}++} @marked_for_deletion};
+	map{$lines[$_] = '' if defined ($_)}@marked_for_deletion;
+
+	my $numerator = 0;
+	my $length = 0;
+
+
+	map {
+		if ($_){
+			my @line = split(/\s/,$_);
+			$numerator+=($line[4]*($line[6]/100));
+			$numerator+=($line[5]*($line[6]/100));
+			$length+=($line[4]+$line[5]);
+			}
+		}@lines;
+
+	my $return = ($length == 0 || $numerator == 0 ) ? 0 : 1-($numerator/$length);
+	return $return;
+}
+
+
+sub greedy_overlap{
+	my ($line1 , $line2 ,$index1,$index2 ) = @_;
+	#split to array refs
+	$line1 = [split(/\s+/ , $line1)];
+	$line2 = [split(/\s+/ , $line2)];
+	
+	#swap in place for well formed ranges. (Not sure this is strictly needed but better safe than sorry)
+	($line1->[1] , $line1->[0] ) = ( $line1->[0] , $line1->[1] )if ($line1->[0] > $line1->[1]);
+	($line2->[1] , $line2->[0] ) = ( $line2->[0] , $line2->[1] )if ($line2->[0] > $line2->[1]);
+
+	($line1->[3] , $line1->[2] ) = ( $line1->[2] , $line1->[3] )if ($line1->[2] > $line1->[3]);
+	($line2->[3] , $line2->[2] ) = ( $line2->[2] , $line2->[3] )if ($line2->[2] > $line2->[3]);
+
+	my $overlap = 0;
+
+	#alignment on same ref , Check for overlap
+	if ($line1->[11] eq $line2->[11]){
+		$overlap = 1 if ($line1->[0] <= $line2->[1] && $line2->[0] <= $line1->[1]);
+		}
+
+	#alignment on same query , check for overlap
+	if ($line1->[12] eq $line2->[12]){
+		$overlap = 1 if ($line1->[2] <= $line2->[3] && $line2->[2] <= $line1->[3]);
+		}
+
+
+	if ($overlap){
+	
+			my @pairs = (
+				[$line1->[4] , $index2],
+				[$line2->[4] , $index1],
+				[$line1->[5] , $index2],
+				[$line2->[5] , $index1]
+				);
+			@pairs = sort{ $b->[0] <=> $a->[0]} @pairs;
+
+			return $pairs[0]->[1];
+		}
+
+	return undef;
+}
+
+sub usage{
+ print './CalculateDistances --manifest <file>\n';
+ return;
+}
+
