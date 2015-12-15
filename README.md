@@ -1,5 +1,5 @@
 
-# Genome2GenomeDistance
+# PanCake
 
 Implementation of methods described in Meier-Kolthoff et al 2013. [Article Here](http://www.biomedcentral.com/1471-2105/14/60)
 
