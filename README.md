@@ -49,7 +49,7 @@ sbatch --array=0-max Array_Submit.slrm
 __Combine and Plot__:
 ```bash
 ls Genomes/*.fa | wc -l 
-#28
+$ 28
 ../CombineChunks --max_elements 28 --files *.mtx --out join.mtx
 ```
 
