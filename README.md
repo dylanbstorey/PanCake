@@ -21,6 +21,7 @@ Dylan Storey and Bart Weimer. (2015). Genome2GenomeDistance: Narya. Zenodo. 10.5
 ```
 ##Installation
 The only non core Perl packages required come from [Inline](https://metacpan.org/pod/Inline::CPP).
+
 To install:
 ```bash
 sudo cpan install Inline
@@ -30,52 +31,46 @@ sudo cpan install Inline::CPP
 ##Synopsis of usage
 __note__: The first time you run these programs a folder (_Inline or .inline) will appear. Don't delete this as it holds libraries for portions of the program.
 
+
+__Create our manifests__:
 ```bash
-cd test/
+./MakeChunks --files Genomes/*.fa --chunk_size 200
+```
 
+__Run them from a single node__:
+```bash
+parallel '../CalculateDistances --manifest {}' ::: *.man
+```
+__Run them from slurm__:
+```bash
+sbatch --array=0-max Array_Submit.slrm
+```
 
-#Create our manifests
-../Split_Manifests --files Genomes/*.fa --chunk_size 200
-
-#Run them from a single node 
-parallel '../G2GCalc --manifest {}' ::: *.man
-
-
-#SBATCH
-#cp ../Array_Submit.slrm . 
-#sbatch --array=0-2 Array_Submit.slrm
-
-cp Chunk*/*mtx . 
-
-#Combine and plot 
-#Get max elements 
+__Combine and Plot__:
+```bash
 ls Genomes/*.fa | wc -l 
 #28
-../CombineMatrices --max_elements 28 --files *.mtx --out test_join.mtx
-
-
+../CombineChunks --max_elements 28 --files *.mtx --out join.mtx
 ```
 
 ##Outputs of the run
-Alot of files. All of the coord and delta files are saved for now. After running the above sample they'll be in the co-ords and deltas folders respectively.
+__mtx files__:
+These contain the calculated distances in a tab delimited format
 
-The main files of ineterest for most people will be the test_join.mtx file and the test_join.mtx.png. The test_join.mtx file is the symmetric distance matrix ordered by hc clustering.
-The png is the actual graphic. 
+__join.mtx__:
+This contains all of the ```mtx``` files as a true matrix with header. 
 
+__test_join.mtx.png__:
+This is the heatmap generated from join.mtx
+ 
 A big run will look a little something like this:
 
 ![Big Heatmap](Extras/heatmap.png)
 
-For reference we compared our method against the G2GDC web server and while we're not getting the exact same number we're close enough that I'm comfortable saying we're right.
 
-![Comparison to G2GDC Web Server](Extras/MethodsComparisons/G2GDC_Webserver/UsVsServer.png)
+#Scripts
 
-
-
-
-
-
-## G2GCalc
+## CalculateDistances
 
 The core program. Currently runs mummer and retrieves MUMs , filters overlapping MUMs and keeping the longest alignment between any two overlapping MUMs, then calculates distance as the average calculated distance between 
 reciprical MUMmer runs. Where a single distance metric is:
@@ -86,28 +81,41 @@ reciprical MUMmer runs. Where a single distance metric is:
 __Usage__:
 
 ```bash
-  ./G2GCalc <options>
+  ./CalculateDistances --manifest <options>
 ```
 
 __Options__:
 
---manifest : instead of providing files on a a command line provide a file that contains a list of the files you wish to process. One file per line.
+--manifest : The manifest file to operate on
   
-## Split_Manifests
+## MakeChunks
 
-Given a large number of files splits the work into many manifests so that analysis can be spread across many computers. 
+Given a large number of files splits the work into many manifests so that analysis can be spread across many processes.
 
 __Usage__ : 
 
 ```bash
-./Split__Manifests --files *.fa --chunk 40000
+./Split__Manifests --files *.fa --chunk 10000
 ```
 __Options__: 
 
 --files : files you wish to be broken up in to sub manifests
 
---chunk : how big of a chunk you want each manifest to take up. (A chunk of 100 will consist of a sub matrix that is 10 x 10 files,unless it is on the diagonal then it will be 1/2 normal size)
+--chunk : how big of a chunk you want each manifest to take up. 
 
+## CombineChunks
+```
+./CombineChunks --max_elements <int> --files <files> --out join.mtx
+```
+
+__Options__:
+--max_elements : The number of samples you have
+
+--files : files to join
+
+--out : name of the file for your final matrix
+
+Combines mtx files in the pair format to a singular matrix , performs clustering, and outputs a heatmap. 
 
 ##Array_Submit.slrm
 SLURM job file for array jobs. You'll want to know the number of the last manifest in a split to use this.
