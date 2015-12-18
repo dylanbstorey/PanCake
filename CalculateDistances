@@ -39,6 +39,7 @@ my $manifest_file = '';
 my @print_buffer = ();
 my $help = 0;
 
+
 GetOptions(
 	'manifest:s' => \$manifest_file,
 	'help+' => \$help,
@@ -80,7 +81,6 @@ my $update_counter = 0;
 
 while  (@manifest){
 	my $line = shift @manifest;
-	
 	my ($ref , $query) = split (/\s/,$line);
 	my $r_base = (fileparse($ref, qr/\.[^.]*/))[0];
 	my $q_base = (fileparse($query, qr/\.[^.]*/))[0];
@@ -111,8 +111,8 @@ while  (@manifest){
 	while(<ALGO_PIPE>){
 		print CLUS_PIPE or die "Couldn't write to $mgaps_path pipe $!"; 
 		}
-	close ALGO_PIPE || die ("ALGO_PIPE returned non zero");
-	close CLUS_PIPE || die ("CLUS_PIPE returned non zero");
+	close ALGO_PIPE || die ("ALGO_PIPE returned non zero $!");
+	close CLUS_PIPE || die ("CLUS_PIPE returned non zero $!");
 
 	#Run mummer | mgaps ref <- query
 	open(ALGO_PIPE, "$algo_path -mum -b -l 44 -n $q_base.ntref $ref 2> /dev/null |") || die ("Couldn't open pipe!");
@@ -120,8 +120,8 @@ while  (@manifest){
 	while(<ALGO_PIPE>){
 		print CLUS_PIPE or die "Couldn't write to $mgaps_path pipe $!";
 		}
-	close ALGO_PIPE || die ("ALGO_PIPE returned non zero");
-	close CLUS_PIPE || die ("CLUS_PIPE returned non zero");
+	close ALGO_PIPE || die ("ALGO_PIPE returned non zero $!");
+	close CLUS_PIPE || die ("CLUS_PIPE returned non zero $!");
 
 	#Run post nuc
 	system("$postnuc_path -b 200 -B 5 $ref $query $r_base\_$q_base < $r_base\_$q_base.mgaps 2> /dev/null ") == 0 || die "postnuc failed!";
