@@ -92,25 +92,10 @@ while  (@manifest){
 	my $r_base = (fileparse($ref, qr/\.[^.]*/))[0];
 	my $q_base = (fileparse($query, qr/\.[^.]*/))[0];
 
-
-	#Run Pre-Nuc
-	unless (-e "$r_base.ntref"){
-		my $system = "$prenuc_path $ref > $r_base.ntref";
-		unless (system("$system") == 0){
-			print STDERR "prenuc returned non zero status for $r_base\n";
-			die;
-			}
+	unless (-e "$r_base.ntref" && -e "$q_base.ntref"){
+		warn "The NTREFS for $r_base &&|| $q_base don't exist!";
+		next;
 		}
-
-	unless (-e "$q_base.ntref"){
-		my $system = "$prenuc_path $query > $q_base.ntref";
-		unless (system("$system") == 0){
-			print STDERR "prenuc returned non zero status for $q_base\n";
-			die;
-			}
-		}
-
-
 
 	#Run mummer | mgaps ref -> query
 	open(ALGO_PIPE, "$algo_path -mum -b -l 44 -n $r_base.ntref $query 2> /dev/null |") || die ("Couldn't open pipe!");

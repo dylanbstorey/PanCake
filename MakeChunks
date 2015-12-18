@@ -26,6 +26,9 @@ use File::Basename;
 use File::Copy;
 use File::Spec;
 
+my $prenuc_path = 		'/usr/lib/mummer/prenuc'	if -e '/usr/lib/mummer/prenuc';
+$prenuc_path //= which("prenuc") || die "Couldn't find a copy of prenuc";
+
 my @files;
 my $chunk_size;
 
@@ -57,9 +60,22 @@ for ( my $i = 0 ; $i < @files ; $i++){
 		}
 	}
 
+map{ 
+	my $file = $_;
+	my $base = (fileparse($file, qr/\.[^.]*/))[0];
+	unless(-e "$base.ntref"){
+		my $system = "$prenuc_path $file > $base.ntref";
+		unless (system("$system") == 0){
+			print STDERR "prenuc returned non zero status for $base\n";
+			die;
+			}
+		}
+	}@files;
 
 exit;
 
 sub usage{
 	print "./MakeChunks --files <files> --chunk_size <int>\n";
 	}
+
+
