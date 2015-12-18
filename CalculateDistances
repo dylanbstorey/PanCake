@@ -142,6 +142,7 @@ while  (@manifest){
 		open (MANIFEST, '>' , $manifest_file) || die $!;
 		print MANIFEST join("\n",@manifest);
 		print OUT join('',@print_buffer);
+		@print_buffer = ();
 		close MANIFEST;
 		$update_counter = 0;
 		}
