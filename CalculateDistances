@@ -40,6 +40,22 @@ GetOptions(
 die usage() unless ($manifest_file);
 die usage() if ($help);
 
+#test required pieces
+my $AUX_BIN_DIR = "/usr/lib/mummer";
+my $BIN_DIR = "/usr/bin";
+my $SCRIPT_DIR = "/usr/share/perl5/";
+
+map{
+	die "Can't find $_ !" unless -e $_;
+	} qw | 	$BIN_DIR/mummer $BIN_DIR/mgaps $BIN_DIR/show-coords $AUX_BIN_DIR/postnuc $AUX_BIN_DIR/prenuc $SCRIPT_DIR/Foundation.pm |;
+
+#-- Set up the program path names
+my $algo_path = "$BIN_DIR/mummer";
+my $mgaps_path = "$BIN_DIR/mgaps";
+my $prenuc_path = "$AUX_BIN_DIR/prenuc";
+my $postnuc_path = "$AUX_BIN_DIR/postnuc";
+my $showcoords_path = "$BIN_DIR/show-coords";
+
 #set signal handler for killed runs.
 $SIG{INT}  = \&signal_handler;
 $SIG{TERM} =\&signal_handler;
@@ -74,31 +90,65 @@ while  (@manifest){
 	my $r_base = (fileparse($ref, qr/\.[^.]*/))[0];
 	my $q_base = (fileparse($query, qr/\.[^.]*/))[0];
 
-	#set search direction 1
-	my $out1 = $r_base .'_'. $q_base;
-	my $mummer1 = "nucmer -mum -l 44 $ref $query -p $out1  2> /dev/null";
-	my $show_coords1 = "show-coords -dTlorH $out1.delta >$out1.coords 2> /dev/null";
-	
-	#set search direction 2
-	my $out2 = $out1;
-	my $mummer2 = "nucmer -mum -l 44 $query $ref -p $out2  2> /dev/null";
-	my $show_coords2 = "show-coords -dTlorH $out2.delta >$out2.coords 2> /dev/null";
-	
-	unless (system($mummer1) == 0){
-		unlink("$out1.delta");
-		unlink("$out1.ntref");
-		unlink("$out1.mgaps");
-		print STDERR "$ref vs $query mummer search failed \n";
-		die;
+
+	#Run Pre-Nuc
+	unless (-e "$r_base.ntref"){
+		my $system = "$prenuc_path $ref > $r_base.ntref";
+		unless (system("$system") == 0){
+			print STDERR "prenuc returned non zero status for $r_base\n";
+			die;
+			}
 		}
 
-	unless (system($mummer2) == 0){
-		unlink("$out2.delta");
-		unlink("$out2.ntref");
-		unlink("$out2.mgaps");
-		print STDERR "$query vs $ref mummer search failed \n";
-		die;
+	unless (-e "$q_base.ntref"){
+		my $system = "$prenuc_path $query > $q_base.ntref";
+		unless (system("$system") == 0){
+			print STDERR "prenuc returned non zero status for $q_base\n";
+			die;
+			}
 		}
+
+
+
+	#Run mummer | mgaps ref -> query
+	open(ALGO_PIPE, "$algo_path -mum -b -l 44 -n $r_base.ntref $query |") || die ("Couldn't open pipe!");
+	open(CLUS_PIPE, "$mgaps_path -l 65 -s 90 -d 5 -f .12 > $r_base\_$q_base.mgaps ") || die ("Couldn't open pipe!");
+	while(<ALGO_PIPE>){print CLUS_PIPE || die "Couldn't write to $mgaps_path pipe $!"; }
+	close ALGO_PIPE || die ("ALGO_PIPE returned non zero");
+	close CLUS_PIPE || die ("CLUS_PIPE returned non zero");
+
+	#Run mummer | mgaps ref <- query
+	open(ALGO_PIPE, "$algo_path -mum -b -l 44 -n $q_base.ntref $ref |") || die ("Couldn't open pipe!");
+	open(CLUS_PIPE, "$mgaps_path -l 65 -s 90 -d 5 -f .12 > $q_base\_$r_base.mgaps ") || die ("Couldn't open pipe!");
+	while(<ALGO_PIPE>){print CLUS_PIPE || die "Couldn't write to $mgaps_path pipe $!"; }
+	close ALGO_PIPE || die ("ALGO_PIPE returned non zero");
+	close CLUS_PIPE || die ("CLUS_PIPE returned non zero");
+
+	#Run post nuc
+	system("$postnuc_path -b 200 -B 5 $ref $query $r_base\_$q_base < $r_base\_$q_base.mgaps") == 0 || die "postnuc failed!";
+	system("$postnuc_path -b 200 -B 5 $query $ref $q_base\_$r_base < $q_base\_$r_base.mgaps") == 0 || die "postnuc failed!";
+
+	#Run show coords
+	my $show_coords1 = "show-coords -dTlorH $r_base\_$q_base.delta > $r_base\_$q_base.coords 2> /dev/null";
+	my $show_coords2 = "show-coords -dTlorH $q_base\_$r_base.delta > $q_base\_$r_base.coords 2> /dev/null";
+	
+	
+	
+	# unless (system($mummer1) == 0){
+	# 	unlink("$out1.delta");
+	# 	unlink("$out1.ntref");
+	# 	unlink("$out1.mgaps");
+	# 	print STDERR "$ref vs $query mummer search failed \n";
+	# 	die;
+	# 	}
+
+	# unless (system($mummer2) == 0){
+	# 	unlink("$out2.delta");
+	# 	unlink("$out2.ntref");
+	# 	unlink("$out2.mgaps");
+	# 	print STDERR "$query vs $ref mummer search failed \n";
+	# 	die;
+	# 	}
 
 	unless(system($show_coords1)== 0){
 		unlink("$out1.coords");
