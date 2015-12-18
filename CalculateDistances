@@ -22,9 +22,17 @@
 use warnings;
 use strict;
 use Getopt::Long;
-use Data::Dumper;
 use File::Basename;
-use Tie::File;
+use File::Which;
+
+
+
+# Set up the program path names
+my $algo_path = which("mummer") || die "Couldn't find a copy of mummer";
+my $mgaps_path = which("mgaps") || die "Couldn't find a copy of mgaps";
+my $prenuc_path = which("prenuc") || die "Couldn't find a copy of prenuc";
+my $postnuc_path = which("postnuc") || die "Couldn't find a copy of postnuc";
+my $showcoords_path = which("show-coords") || die "Couldn't find a copy of show-coords";
 
 
 my $manifest_file = '';
@@ -40,21 +48,8 @@ GetOptions(
 die usage() unless ($manifest_file);
 die usage() if ($help);
 
-#test required pieces
-my $AUX_BIN_DIR = "/usr/lib/mummer";
-my $BIN_DIR = "/usr/bin";
-my $SCRIPT_DIR = "/usr/share/perl5/";
 
-map{
-	die "Can't find $_ !" unless -e $_;
-	} ("$BIN_DIR/mummer","$BIN_DIR/mgaps","$BIN_DIR/show-coords","$AUX_BIN_DIR/postnuc","$AUX_BIN_DIR/prenuc") ;
 
-#-- Set up the program path names
-my $algo_path = "$BIN_DIR/mummer";
-my $mgaps_path = "$BIN_DIR/mgaps";
-my $prenuc_path = "$AUX_BIN_DIR/prenuc";
-my $postnuc_path = "$AUX_BIN_DIR/postnuc";
-my $showcoords_path = "$BIN_DIR/show-coords";
 
 #set signal handler for killed runs.
 $SIG{INT}  = \&signal_handler;
