@@ -11,6 +11,7 @@ While the authors of that publication rightly believe that the BLAST algorithm g
 These programs provide a minimal implementation of their described methods so that the nucmer program could instead be employed using greedy trimming along with the equation __d<sub>4</sub>__ to calculate a distance between two genome assemblies.
 
 End output will give you something like this:
+
 ![Big Heatmap](Figures/BigTree.mtx.png)
 
 
