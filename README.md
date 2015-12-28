@@ -12,15 +12,15 @@ These programs provide a minimal implementation of their described methods so th
 
 End output will give you something like this:
 
-![Big Heatmap](Figures/BigTree.mtx.png)
+![Big Heatmap](Images/BigTree.mtx.png)
 
 
 Of course people will be interested in if we're calculating similar distances to other implementations:
 The short answer; yes. We just tend to under estimate diversity. 
 
-![Big Heatmap](Figures/Correlation.png)
+![Big Heatmap](Images/Correlation.png)
 
-![Big Heatmap](Figures/Diffs.png)
+![Big Heatmap](Images/Diffs.png)
 
 The real important part is the speed increase:
 
