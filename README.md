@@ -10,6 +10,24 @@ While the authors of that publication rightly believe that the BLAST algorithm g
 
 These programs provide a minimal implementation of their described methods so that the nucmer program could instead be employed using greedy trimming along with the equation __d<sub>4</sub>__ to calculate a distance between two genome assemblies.
 
+End output will give you something like this:
+![Big Heatmap](Figures/BigTree.mtx.png)
+
+
+Of course people will be interested in if we're calculating similar distances to other implementations:
+The short answer; yes. We just tend to under estimate diversity. 
+
+![Big Heatmap](Figures/Correlation.png)
+
+![Big Heatmap](Figures/Diffs.png)
+
+The real important part is the speed increase:
+
+|Organism           |    GBDP |         PanCake |
+|:------------------|:--------|:----------------|
+|_Salmonella_       |06:28:11 |      00:09:47   |
+|_Campylobacter_    | 03:19:25|      00:02:24   |
+
 ##Citing this work:
 
 If you use this program or any of its outputs in your research please cite the following:
@@ -20,12 +38,13 @@ Genome sequence-based species delimitation with confidence intervals and improve
 BMC Bioinformatics
 2013
 
-Dylan Storey and Bart Weimer. (2015). PanCake:Narya
+Dylan Storey and Bart Weimer. (2015). PanCake: Narya. Zenodo. 10.5281/zenodo.35916
 ```
 ##Installation
 The only non core Perl packages required come from [Inline](https://metacpan.org/pod/Inline::CPP).
 
 To install:
+
 ```bash
 sudo cpan install Inline
 sudo cpan install Inline::CPP
@@ -57,18 +76,18 @@ $ 28
 ```
 
 ##Outputs of the run
-__mtx files__:
+__pairs files__:
 These contain the calculated distances in a tab delimited format
 
 __join.mtx__:
-This contains all of the ```mtx``` files as a true matrix with header. 
+This contains all of the ```pairs``` files as a true matrix with header. 
 
 __test_join.mtx.png__:
-This is the heatmap generated from join.mtx
+This is the heatmap generated from join.mtx using hclust and ggplot2.
  
 A big run will look a little something like this:
 
-![Big Heatmap](Extras/heatmap.png)
+
 
 
 #Scripts
