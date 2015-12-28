@@ -1,7 +1,10 @@
 
+[![DOI](https://zenodo.org/badge/19239/dylanstorey/PanCake.svg)](https://zenodo.org/badge/latestdoi/19239/dylanstorey/PanCake)
+
 # PanCake
 
-Implementation of methods described in Meier-Kolthoff et al 2013. [Article Here](http://www.biomedcentral.com/1471-2105/14/60)
+Implementation of methods described in Meier-Kolthoff et al 2013.
+[Article Here](http://www.biomedcentral.com/1471-2105/14/60)
 
 While the authors of that publication rightly believe that the BLAST algorithm gives more sensitivity for these questions , it comes at an extreme cost making application to large datasets computationally intractible. 
 
@@ -17,7 +20,7 @@ Genome sequence-based species delimitation with confidence intervals and improve
 BMC Bioinformatics
 2013
 
-Dylan Storey and Bart Weimer. (2015). Genome2GenomeDistance: Narya. Zenodo. 10.5281/zenodo.33225
+Dylan Storey and Bart Weimer. (2015). PanCake:Narya
 ```
 ##Installation
 The only non core Perl packages required come from [Inline](https://metacpan.org/pod/Inline::CPP).
