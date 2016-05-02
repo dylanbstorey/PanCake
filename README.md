@@ -1,5 +1,5 @@
 
-[![DOI](https://zenodo.org/badge/19239/dylanstorey/PanCake.svg)](https://zenodo.org/badge/latestdoi/19239/dylanstorey/PanCake)
+[![DOI](https://zenodo.org/badge/19239/dylanbstorey/PanCake.svg)](https://zenodo.org/badge/latestdoi/19239/dylanbstorey/PanCake)
 
 # PanCake
 
